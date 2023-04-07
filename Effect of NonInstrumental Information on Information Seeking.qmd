@@ -1,0 +1,233 @@
+---
+title: "The Effect of NonInstrumental Information on Information Seeking"
+author: "Andrew Blackburn"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: Load R libraries
+#| echo: false
+#| message: false
+
+library(osfr)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ez)
+```
+
+```{r}
+#| label: Load the data from OSF
+#| echo: false
+#| include: false
+
+osf_retrieve_node("2pxf4") %>%
+  osf_ls_files() %>%
+  osf_download(path="eeg.data/", conflicts = "skip")
+
+```
+
+## Introduction
+
+We too often rely on the exciting results of one study to change our minds on previous beliefs. Before we accept a study, we must ask, "does this effect happen if we run the same experiment again?". This is called replication. Replication of scientific work is a critical aspect of research that helps to further the goals of the scientific community. If just one study provides an interesting finding it has the potential to be a fluke. In order to accept the findings, the study must be able to be performed by scientists in a different place with different subjects. There is a "replication crisis" in which many studies that have been tried to be replicated either cannot be replicated, and even with successful replication tend to have a smaller effect size. Moreover, a scant few of published research articles are replication studies---this is like building a skyscraper without checking if the foundation is sturdy. In 100 journals from 1900-2012, only 1.07% were found to be replications with increasing frequency in recent decades (Makel et al. 2012).
+
+We conducted a replication of "The neural encoding of information prediction errors during non-instrumental information seeking" by Brydevall et al. (2018) to replicate their EEG findings. The original study found that event-related potentials following informative cues encoded in the feedback-related negativity had both an information prediction error (IPE) and a reward prediction error (RPE).
+
+The experimental design had multiple trials of a gambling task. The gambling task consisted of 5 cards flipping in succession of either red or black color. Before the cards flipped, the participant would first choose either RED or BLACK as their prediction for the majority color. Then, the five cards would flip over and if the participant chose the majority color, they won 20¢ and if not they won nothing.
+
+An RPE arises after each flip corresponding to the difference between how likely they were to win before and after the flip. For example, if the participant chose RED and two red cards have already been flipped, then a black card flips, there is a negative RPE. With two red cards, you feel confident that you will win then the black card decreases your confidence.
+
+Contrarily, an IPE corresponds to the certainty of the outcome whether you win or not. So, if the participant chose red from the start and two black cards have already been flipped, then a red card flips, that is a negative IPE because you go from being more certain about losing to less certain what will happen.
+
+Brydevall et al. (2018) found EEG evidence that the patterns of encoding for RPEs and IPEs were very similar. They claim this indicates that humans value information that reduces uncertainty in a similar way to receiving a reward. This replication seeks to examine this effect of the RPEs and IPEs with more participants.
+
+## Methods
+
+Our pre-registration and data are located in an OSF project at: https://osf.io/v3jzm/
+
+```{r}
+#| label: Load the Behavioral Data
+#| echo: false
+#| message: false
+
+behavioral.data <- read_csv('eeg.data/behavioral.csv')
+```
+
+```{r}
+#| label: count the number of subjects
+#| echo: false
+
+n.subjects <- behavioral.data %>% 
+  pull(subject) %>%
+  unique() %>%
+  length()
+  
+
+```
+
+### Participants
+
+`r n.subjects` Vassar Students participated in the study. We recruited by sending a survey to students from Intro to Cognitive Science classes, friends, and the general student body. We recognize the potential for selection bias as we are choosing from a specific subset of the Vassar student population.
+
+### Procedure
+
+The experimental task was similar to Brydevall et al. (2018) and involved a card game betting task. The participant had to predict whether there would be more black or red cards in an unknown array of 5 cards. In each trial 5 cards would appear face down and they turned over one by one revealing the color. The participant won 20¢ each hand that they correctly predicted the winning color, and 0¢ if they were wrong. Occasionally there was an attention check in which a white X appeared on one of the cards and the participant had to press any arrow key within 1.5 seconds (if they failed 3 attention checks they were excluded from the data analysis). The experiment began with 3 practice trials and a practice attention check. In the actual experiment, the participant played 80 hands with 5 attention checks. We broke the experiment into 5 blocks with 17 rounds in each (16 trials and 1 attention check).
+
+We fixed the outcomes of the trials so that the participant would win 50% of the time, but the outcomes were randomized in each block of the experiment. Participants were told there would be a base pay of \$10 and their winnings from the experiment would be added. Since every participant won 50% of the 80 trials, everyone received \$18 total.
+
+We used the CGX Quick System EEG 20 Channels headset which uses dry and semi-dry polymer sensors. When the participant arrived, we measured their head to ensure it was not bigger than 62 cm, then fit them with the headset. Once the headset was on we brought the participant into the testing room. In the testing room there was a monitor used for the experiment. One experimenter would stay with the participant in the testing room, and the other went to the adjacent classroom to open the software, CGX Acquisition. The classroom had two monitors---one mirrored the participants screen, and we used the other to watch the EEG data collection during the experiment simultaneously. We looked at the brainwaves with the participant and fitted the cap so that the electrodes had as low impedance as possible. In CGX Acquisition, the best connection was shown as a dark green color on the electrode, medium connection as light green, and poor connection as red. We were focusing our analysis on the Fp1, Fp2, Fz, and Cz electrodes, which we called critical electrodes, so we made sure those were all dark green. We tried to get all electrodes on the cap dark or light green for consistency, but would often have to leave some red. For critical electrodes that were difficult to connect, we swapped the typical comb sensor for a hydro sensor which we dampened before attaching to the cap; the hydro sensors are made of softer material and have higher connectivity, but they are less durable. Once we had achieved adequate connection, we observed the EEG waves with the participant and showed them how movements like blinking, eye movement, jaw clenching, etc. would add noise to the data. We emphasized the need to keep still and prevent blinking during each trial. We used the CGX StimTracker Quad Base Model to mark the flipping of each cards in the data.
+
+## Results
+
+### Behavior
+
+```{r}
+#| label: count failed attention checks
+#| message: false
+#| echo: false
+failed.attention <- behavioral.data %>%
+  group_by(subject,catch_n) %>%
+  filter(task == "catch",card_id==catch_n) %>%
+  select(rt, subject, card_id, task, catch_n) %>%
+  filter(rt>1500) %>%
+  count(rt>1500)
+```
+
+find a way to filter subjects who fail attention checks
+
+```{r}
+#| label: summarize response time from attention checks
+#| message: false
+#| echo: false
+
+attention.checks <- behavioral.data %>%
+  filter(task == "catch",card_id==catch_n)%>%
+  select(rt, subject, card_id, task, catch_n)%>%
+  summarize(M=mean(rt), SD=sd(rt))
+```
+
+```{r}
+#| label: define entropy function
+#| echo: false
+entropy <- function(p){
+  return(ifelse(p==0|p==1, 0, -p*log2(p)-(1-p)*log2(1-p)))}
+
+```
+
+```{r}
+#| label: RPE calculations
+#| echo: false
+erp.rpe.ipe.data <- behavioral.data %>%
+  filter(phase == "test", task == "reveal") %>%
+  group_by(subject) %>%
+  mutate(hand_id = rep(1:80, each=5)) %>%
+  select(subject,hand_id,card_id,card_value,wins_so_far) %>%
+  mutate(losses_so_far = card_id-1-wins_so_far)%>%
+  mutate(prob_win_before = pbinom(2-losses_so_far, 6-card_id,0.5))%>%
+  mutate(prob_win_after = pbinom(2-(losses_so_far+(1-card_value)),5-card_id,0.5))%>%
+  mutate(rpe = prob_win_after-prob_win_before)%>%
+  
+#| IPE calculations
+  mutate(prob_win_alternative = pbinom(2-(losses_so_far+card_value),5-card_id,0.5))%>%
+  mutate(HwpA = entropy(prob_win_after))%>%
+  mutate(HwpB = entropy(prob_win_before))%>%
+  mutate(HwpAlt = entropy(prob_win_alternative))%>%
+#| Iactual
+  mutate(Iactual = HwpB-HwpA)%>%
+#| Ialternative
+  mutate(Ialt = HwpB-HwpAlt)%>%
+#| Iexpected
+  mutate(Iexpected = (Iactual + Ialt)/2)%>%
+#| IPE
+  mutate(ipe=Iactual-Iexpected)%>%
+  
+#| rpe type
+  mutate(rpe_type = ifelse(rpe>0,"Positive",ifelse(rpe<0,"Negative","None")))%>%
+#| ipe type
+  mutate(ipe_type = ifelse(ipe>0,"Positive",ifelse(ipe<0,"Negative","None")))
+```
+
+### EEG
+
+```{r}
+#| label: Load the EEG Data
+#| echo: false
+#| message: false
+
+eeg.data <- read_csv('eeg.data/eeg.csv')
+```
+
+```{r}
+#| label: define  parameters
+#| echo: false
+
+target.electrodes <- c(11, 24, 124, 129)
+frn.window <- 200:350
+```
+
+```{r}
+eeg.data.filtered <- eeg.data %>%
+  filter(electrode == "Cz" | electrode == "Fz") %>%
+  filter(good_segment==TRUE)
+```
+
+```{r}
+joined.eeg.data <- left_join(eeg.data.filtered, erp.rpe.ipe.data, by = c("subject", "card_id", "hand_id"))
+```
+
+```{r}
+remove.participants <- joined.eeg.data %>%
+  group_by(subject, electrode, rpe_type)%>%
+  summarize(unique.hands = unique(hand_id))%>%
+  summarize(number.hands = length(unique.hands))%>%
+  filter(number.hands < 20)
+```
+
+```{r}
+good.data <- joined.eeg.data %>%
+  filter(subject != c(18, 24, 44, 48))
+```
+
+```{r}
+#| label: Calculate the Grand Averages
+#| echo: false
+#| message: false
+
+grand.average.erp <- good.data %>%
+  filter(electrode == "Cz" | electrode == "Fz", rpe_type != "None", ipe_type != "None") %>%
+  group_by(t,electrode, rpe_type, ipe_type) %>%
+  filter(good_segment==TRUE) %>%
+  summarize(Mv = mean(v), SE=sd(v)/sqrt(n()))
+```
+
+```{r}
+#| label: fig-grand-averages
+#| echo: false
+
+ggplot(grand.average.erp,aes(x=t, y=Mv, ymin=Mv-SE, ymax=Mv+SE, color=rpe_type, ipe_type)) + 
+  geom_vline(xintercept=0)+
+  geom_hline(yintercept=0) +
+  annotate("rect", xmin=min(frn.window), xmax=max(frn.window), ymin=-Inf, ymax=Inf, alpha=0.2) +
+  geom_ribbon(alpha=0.2, color=1)+
+  geom_line() +
+  facet_wrap(~electrode + rpe_type) +
+  scale_y_reverse()
+```
+
+```{r}
+#| label: Calculate ERP ANOVA data
+#| echo: false
+
+erp.anova.data <- good.data %>%
+  filter(t %in% frn.window, electrode == "Cz" | electrode == "Fz") %>%
+  group_by(subject, electrode) %>%
+  summarize(M=mean(v)) %>%
+  mutate(electrode = factor(electrode))
+```
+
+```{r}
+ezANOVA()
+```
+
+### Discussion
